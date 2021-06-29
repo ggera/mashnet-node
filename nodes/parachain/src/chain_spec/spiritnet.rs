@@ -27,8 +27,9 @@ use kilt_primitives::{
 use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
 use spiritnet_runtime::{
-	BalancesConfig, GenesisConfig, InflationInfo, KiltLaunchConfig, MinCollatorStake, ParachainInfoConfig,
-	ParachainStakingConfig, SessionConfig, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
+	BalancesConfig, GenesisConfig, InflationInfo, KiltLaunchConfig, MinCollatorStake,
+	ParachainInfoConfig, ParachainStakingConfig, SessionConfig, SudoConfig, SystemConfig,
+	VestingConfig, WASM_BINARY,
 };
 
 use crate::chain_spec::{get_account_id_from_seed, get_from_seed};
@@ -287,9 +288,6 @@ fn testnet_genesis(
 			inflation_config,
 			max_candidate_stake,
 		},
-		aura: Default::default(),
-		aura_ext: Default::default(),
-		parachain_system: Default::default(),
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
@@ -302,5 +300,6 @@ fn testnet_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
+		..GenesisConfig::default()
 	}
 }

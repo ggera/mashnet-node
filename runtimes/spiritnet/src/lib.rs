@@ -27,25 +27,34 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use frame_system::limits::{BlockLength, BlockWeights};
+use codec::Decode;
+use frame_support::{ensure, traits::LockIdentifier, PalletId};
+use frame_system::{
+	limits::{BlockLength, BlockWeights},
+	EnsureOneOf, EnsureRoot, EnsureSigned,
+};
 use kilt_primitives::{
 	constants::{
 		AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, KILT, MAXIMUM_BLOCK_WEIGHT, MICRO_KILT, MILLI_KILT,
 		MIN_VESTED_TRANSFER_AMOUNT, NORMAL_DISPATCH_RATIO, SLOT_DURATION,
 	},
-	AccountId, AuthorityId, Balance, BlockNumber, Hash, Header, Index, Signature,
+	AccountId, AuthorityId, Balance, BlockNumber, DidIdentifier, Hash, Header, Index, Signature,
 };
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use sp_api::impl_runtime_apis;
-use sp_core::OpaqueMetadata;
+use sp_core::{
+	u32_trait::{_1, _2, _3, _5},
+	OpaqueMetadata,
+};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, OpaqueKeys},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, OpaqueKeys, Verify},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedPointNumber, Perquintill,
+	ApplyExtrinsicResult, FixedPointNumber, MultiSignature, Perquintill,
 };
 use sp_std::prelude::*;
 use sp_version::RuntimeVersion;
+use static_assertions::const_assert;
 
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -399,6 +408,339 @@ impl parachain_staking::Config for Runtime {
 	type WeightInfo = weights::parachain_staking::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * RuntimeBlockWeights::get().max_block;
+	pub const MaxScheduledPerBlock: u32 = 50;
+}
+
+impl pallet_scheduler::Config for Runtime {
+	type Event = Event;
+	type Origin = Origin;
+	type PalletsOrigin = OriginCaller;
+	type Call = Call;
+	type MaximumWeight = MaximumSchedulerWeight;
+	type ScheduleOrigin = EnsureRoot<AccountId>;
+	type MaxScheduledPerBlock = MaxScheduledPerBlock;
+	type WeightInfo = weights::pallet_scheduler::WeightInfo<Runtime>;
+}
+
+#[cfg(feature = "fast-gov")]
+pub const LAUNCH_PERIOD: BlockNumber = 7 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const LAUNCH_PERIOD: BlockNumber = 7 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const VOTING_PERIOD: BlockNumber = 7 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const VOTING_PERIOD: BlockNumber = 7 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 7 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 7 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const ENACTMENT_PERIOD: BlockNumber = 8 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const ENACTMENT_PERIOD: BlockNumber = 8 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const COOLOFF_PERIOD: BlockNumber = 7 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const COOLOFF_PERIOD: BlockNumber = 7 * DAYS;
+
+parameter_types! {
+	pub const LaunchPeriod: BlockNumber = LAUNCH_PERIOD;
+	pub const VotingPeriod: BlockNumber = VOTING_PERIOD;
+	pub const FastTrackVotingPeriod: BlockNumber = FAST_TRACK_VOTING_PERIOD;
+	pub const MinimumDeposit: Balance = KILT;
+	pub const EnactmentPeriod: BlockNumber = ENACTMENT_PERIOD;
+	pub const CooloffPeriod: BlockNumber = COOLOFF_PERIOD;
+	// One cent: $10,000 / MB
+	pub const PreimageByteDeposit: Balance = 10 * MILLI_KILT;
+	pub const InstantAllowed: bool = true;
+	pub const MaxVotes: u32 = 100;
+	pub const MaxProposals: u32 = 100;
+}
+
+impl pallet_democracy::Config for Runtime {
+	type Proposal = Call;
+	type Event = Event;
+	type Currency = Balances;
+	type EnactmentPeriod = EnactmentPeriod;
+	type LaunchPeriod = LaunchPeriod;
+	type VotingPeriod = VotingPeriod;
+	type MinimumDeposit = MinimumDeposit;
+	/// A straight majority of the council can decide what their next motion is.
+	type ExternalOrigin = pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>;
+	/// A majority can have the next scheduled referendum be a straight
+	/// majority-carries vote.
+	type ExternalMajorityOrigin = pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>;
+	/// A unanimous council can have the next scheduled referendum be a straight
+	/// default-carries (NTB) vote.
+	type ExternalDefaultOrigin = pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>;
+	/// Two thirds of the technical committee can have an
+	/// ExternalMajority/ExternalDefault vote be tabled immediately and with a
+	/// shorter voting/enactment period.
+	type FastTrackOrigin = pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>;
+	type InstantOrigin = pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>;
+	type InstantAllowed = InstantAllowed;
+	type FastTrackVotingPeriod = FastTrackVotingPeriod;
+	// To cancel a proposal which has been passed, 2/3 of the council must agree to
+	// it.
+	type CancellationOrigin = EnsureOneOf<
+		AccountId,
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
+	>;
+	// To cancel a proposal before it has been passed, the technical committee must
+	// be unanimous or Root must agree.
+	type CancelProposalOrigin = EnsureOneOf<
+		AccountId,
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
+	>;
+	type BlacklistOrigin = EnsureRoot<AccountId>;
+	// Any single technical committee member may veto a coming council proposal,
+	// however they can only do it once and it lasts only for the cooloff period.
+	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
+	type CooloffPeriod = CooloffPeriod;
+	type PreimageByteDeposit = PreimageByteDeposit;
+	type Slash = Treasury;
+	type Scheduler = Scheduler;
+	type PalletsOrigin = OriginCaller;
+	type MaxVotes = MaxVotes;
+	type OperationalPreimageOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
+	type MaxProposals = MaxProposals;
+
+	type WeightInfo = weights::pallet_democracy::WeightInfo<Runtime>;
+}
+
+pub const SPEND_PERIOD: BlockNumber = 6 * DAYS;
+
+parameter_types! {
+	pub const TreasuryPalletId: PalletId = PalletId(*b"kilt/tsy");
+	pub const ElectionsPalletId: LockIdentifier = *b"kilt/elc";
+}
+
+parameter_types! {
+	pub const ProposalBond: Permill = Permill::from_percent(5);
+	pub const ProposalBondMinimum: Balance = 20 * KILT; // TODO: how much?
+	pub const SpendPeriod: BlockNumber = SPEND_PERIOD;
+	pub const Burn: Permill = Permill::zero();
+	pub const MaxApprovals: u32 = 100;
+}
+
+type ApproveOrigin = EnsureOneOf<
+	AccountId,
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
+>;
+
+type MoreThanHalfCouncil = EnsureOneOf<
+	AccountId,
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
+>;
+
+impl pallet_treasury::Config for Runtime {
+	type PalletId = TreasuryPalletId;
+	type Currency = Balances;
+	type ApproveOrigin = ApproveOrigin;
+	type RejectOrigin = MoreThanHalfCouncil;
+	type Event = Event;
+	type OnSlash = Treasury;
+	type ProposalBond = ProposalBond;
+	type ProposalBondMinimum = ProposalBondMinimum;
+	type SpendPeriod = SpendPeriod;
+	type Burn = Burn;
+	type BurnDestination = ();
+	type SpendFunds = ();
+	type WeightInfo = weights::pallet_treasury::WeightInfo<Runtime>;
+	type MaxApprovals = MaxApprovals;
+}
+
+const ROTATION_PERIOD: BlockNumber = 80 * kilt_primitives::constants::HOURS;
+const CHALLENGE_PERIOD: BlockNumber = 7 * DAYS;
+
+parameter_types! {
+	pub const CandidateDeposit: Balance = 10 * KILT;
+	pub const WrongSideDeduction: Balance = 2 * KILT;
+	pub const MaxStrikes: u32 = 10;
+	pub const RotationPeriod: BlockNumber = ROTATION_PERIOD;
+	pub const PeriodSpend: Balance = 500 * KILT;
+	pub const MaxLockDuration: BlockNumber = 36 * 30 * DAYS;
+	pub const ChallengePeriod: BlockNumber = CHALLENGE_PERIOD;
+	pub const MaxCandidateIntake: u32 = 1;
+}
+
+pub const fn deposit(items: u32, bytes: u32) -> Balance {
+	items as Balance * 20 * KILT + (bytes as Balance) * 100 * MILLI_KILT
+}
+
+pub const TERM_DURATION: BlockNumber = DAYS;
+
+parameter_types! {
+	pub const CandidacyBond: Balance = 2 * KILT;
+	// 1 storage item created, key size is 32 bytes, value size is 16+16.
+	pub const VotingBondBase: Balance = deposit(1, 64);
+	// additional data per vote is 32 bytes (account id).
+	pub const VotingBondFactor: Balance = deposit(0, 32);
+	/// Daily council elections
+	pub const TermDuration: BlockNumber = TERM_DURATION;
+	pub const DesiredMembers: u32 = 19;
+	pub const DesiredRunnersUp: u32 = 19;
+}
+
+// Make sure that there are no more than MaxMembers members elected via
+// phragmen.
+const_assert!(DesiredMembers::get() <= CouncilMaxMembers::get());
+
+impl pallet_elections_phragmen::Config for Runtime {
+	type PalletId = ElectionsPalletId;
+	type Event = Event;
+	type Currency = Balances;
+	type ChangeMembers = Council;
+	type InitializeMembers = Council;
+	type CurrencyToVote = frame_support::traits::U128CurrencyToVote;
+	type CandidacyBond = CandidacyBond;
+	type VotingBondBase = VotingBondBase;
+	type VotingBondFactor = VotingBondFactor;
+	type LoserCandidate = Treasury;
+	type KickedMember = Treasury;
+	type DesiredMembers = DesiredMembers;
+	type DesiredRunnersUp = DesiredRunnersUp;
+	type TermDuration = TermDuration;
+	// FIXME: Benchmarks fail, but this pallet will be replaced by another election
+	// algorithm before replacing sudo with governance.
+	type WeightInfo = ();
+}
+
+pub const COUNCIL_MOTION_DURATION: BlockNumber = 3 * DAYS;
+
+parameter_types! {
+	pub const CouncilMotionDuration: BlockNumber = COUNCIL_MOTION_DURATION;
+	pub const CouncilMaxProposals: u32 = 100;
+	pub const CouncilMaxMembers: u32 = 100;
+}
+
+type CouncilCollective = pallet_collective::Instance1;
+impl pallet_collective::Config<CouncilCollective> for Runtime {
+	type Origin = Origin;
+	type Proposal = Call;
+	type Event = Event;
+	type MotionDuration = CouncilMotionDuration;
+	type MaxProposals = CouncilMaxProposals;
+	type MaxMembers = CouncilMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
+}
+
+pub const TECHNICAL_MOTION_DURATION: BlockNumber = 3 * DAYS;
+
+parameter_types! {
+	pub const TechnicalMotionDuration: BlockNumber = TECHNICAL_MOTION_DURATION;
+	pub const TechnicalMaxProposals: u32 = 100;
+	pub const TechnicalMaxMembers: u32 = 100;
+}
+
+type TechnicalCollective = pallet_collective::Instance2;
+impl pallet_collective::Config<TechnicalCollective> for Runtime {
+	type Origin = Origin;
+	type Proposal = Call;
+	type Event = Event;
+	type MotionDuration = TechnicalMotionDuration;
+	type MaxProposals = TechnicalMaxProposals;
+	type MaxMembers = TechnicalMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
+}
+
+impl pallet_membership::Config for Runtime {
+	type Event = Event;
+	type AddOrigin = MoreThanHalfCouncil;
+	type RemoveOrigin = MoreThanHalfCouncil;
+	type SwapOrigin = MoreThanHalfCouncil;
+	type ResetOrigin = MoreThanHalfCouncil;
+	type PrimeOrigin = MoreThanHalfCouncil;
+	type MembershipInitialized = TechnicalCommittee;
+	type MembershipChanged = TechnicalCommittee;
+	type MaxMembers = TechnicalMaxMembers;
+	type WeightInfo = weights::pallet_membership::WeightInfo<Runtime>;
+}
+
+impl delegation::VerifyDelegateSignature for Runtime {
+	type DelegateId = AccountId;
+	type Payload = Vec<u8>;
+	type Signature = Vec<u8>;
+
+	// No need to retrieve delegate details as it is simply an AccountId.
+	fn verify(
+		delegate: &Self::DelegateId,
+		payload: &Self::Payload,
+		signature: &Self::Signature,
+	) -> delegation::SignatureVerificationResult {
+		// Try to decode signature first.
+		let decoded_signature = MultiSignature::decode(&mut &signature[..])
+			.map_err(|_| delegation::SignatureVerificationError::SignatureInvalid)?;
+
+		ensure!(
+			decoded_signature.verify(&payload[..], delegate),
+			delegation::SignatureVerificationError::SignatureInvalid
+		);
+
+		Ok(())
+	}
+}
+
+impl attestation::Config for Runtime {
+	type EnsureOrigin = EnsureSigned<<Self as delegation::Config>::DelegationEntityId>;
+	type Event = Event;
+	type WeightInfo = weights::attestation::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+	pub const MaxSignatureByteLength: u16 = 64;
+	pub const MaxParentChecks: u32 = 5;
+	pub const MaxRevocations: u32 = 5;
+}
+
+impl delegation::Config for Runtime {
+	type DelegationSignatureVerification = Self;
+	type DelegationEntityId = AccountId;
+	type DelegationNodeId = Hash;
+	type EnsureOrigin = EnsureSigned<Self::DelegationEntityId>;
+	type Event = Event;
+	type MaxSignatureByteLength = MaxSignatureByteLength;
+	type MaxParentChecks = MaxParentChecks;
+	type MaxRevocations = MaxRevocations;
+	type WeightInfo = weights::delegation::WeightInfo<Runtime>;
+}
+
+impl ctype::Config for Runtime {
+	type CtypeCreatorId = AccountId;
+	type EnsureOrigin = EnsureSigned<Self::CtypeCreatorId>;
+	type Event = Event;
+	type WeightInfo = weights::ctype::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+	pub const MaxNewKeyAgreementKeys: u32 = 10u32;
+	pub const MaxVerificationKeysToRevoke: u32 = 10u32;
+	pub const MaxUrlLength: u32 = 200u32;
+}
+
+impl did::Config for Runtime {
+	type DidIdentifier = DidIdentifier;
+	type Event = Event;
+	type Call = Call;
+	type Origin = Origin;
+	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
+	type MaxVerificationKeysToRevoke = MaxVerificationKeysToRevoke;
+	type MaxUrlLength = MaxUrlLength;
+	type WeightInfo = weights::did::WeightInfo<Runtime>;
+}
+
 impl pallet_utility::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
@@ -432,10 +774,49 @@ construct_runtime! {
 		ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>, Config} = 18,
 		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 19,
 
+		// Governance stuff; uncallable initially.
+		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 25,
+		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 26,
+		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 27,
+		ElectionsPhragmen: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 28,
+		TechnicalMembership: pallet_membership::{Pallet, Call, Storage, Event<T>, Config<T>} = 29,
+		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 30,
+
+		// System scheduler.
+		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 32,
+
 		// Vesting. Usable initially, but removed once all vesting is finished.
 		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 33,
 		KiltLaunch: kilt_launch::{Pallet, Call, Storage, Event<T>, Config<T>} = 34,
 		Utility: pallet_utility::{Pallet, Call, Storage, Event} = 35,
+
+		Ctype: ctype::{Pallet, Call, Storage, Event<T>} = 40,
+		Attestation: attestation::{Pallet, Call, Storage, Event<T>} = 41,
+		Delegation: delegation::{Pallet, Call, Storage, Event<T>} = 42,
+		Did: did::{Pallet, Call, Storage, Event<T>, Origin<T>} = 43,
+
+
+	}
+}
+
+impl did::DeriveDidCallAuthorizationVerificationKeyRelationship for Call {
+	fn derive_verification_key_relationship(&self) -> Option<did::DidVerificationKeyRelationship> {
+		match self {
+			Call::Attestation(_) => Some(did::DidVerificationKeyRelationship::AssertionMethod),
+			Call::Ctype(_) => Some(did::DidVerificationKeyRelationship::AssertionMethod),
+			Call::Delegation(_) => Some(did::DidVerificationKeyRelationship::CapabilityDelegation),
+			#[cfg(not(feature = "runtime-benchmarks"))]
+			_ => None,
+			// By default, returns the authentication key
+			#[cfg(feature = "runtime-benchmarks")]
+			_ => Some(did::DidVerificationKeyRelationship::Authentication),
+		}
+	}
+
+	// Always return a System::remark() extrinsic call
+	#[cfg(feature = "runtime-benchmarks")]
+	fn get_call_for_did_call_benchmark() -> Self {
+		Call::System(frame_system::Call::remark(vec![]))
 	}
 }
 

@@ -55,7 +55,6 @@ pallet-membership = {git = "https://github.com/paritytech/substrate", default-fe
 pallet-randomness-collective-flip = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5"}
 pallet-scheduler = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5"}
 pallet-session = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5"}
-pallet-society = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5"}
 pallet-sudo = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5"}
 pallet-timestamp = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5"}
 pallet-transaction-payment = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5"}
@@ -80,7 +79,6 @@ xcm-executor = {git = "https://github.com/paritytech/polkadot", default-features
 frame-benchmarking = {git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.5"}
 frame-system-benchmarking = {git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.5"}
 hex-literal = {version = "0.3.1", optional = true}
-rococo-runtime = {git = "https://github.com/paritytech/polkadot", default-features = false, optional = true, branch = "release-v0.9.5"}
 
 # Runtime tests
 frame-try-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5", optional = true}
@@ -109,13 +107,11 @@ runtime-benchmarks = [
   "pallet-membership/runtime-benchmarks",
   "pallet-scheduler/runtime-benchmarks",
   # "pallet-session/runtime-benchmarks",
-  "pallet-society/runtime-benchmarks",
   "pallet-timestamp/runtime-benchmarks",
   "pallet-treasury/runtime-benchmarks",
   "pallet-vesting/runtime-benchmarks",
   "pallet-utility/runtime-benchmarks",
   "parachain-staking/runtime-benchmarks",
-  "rococo-runtime/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",
 ]
 std = [
@@ -149,7 +145,6 @@ std = [
   "pallet-randomness-collective-flip/std",
   "pallet-scheduler/std",
   "pallet-session/std",
-  "pallet-society/std",
   "pallet-sudo/std",
   "pallet-timestamp/std",
   "pallet-transaction-payment/std",
@@ -197,7 +192,6 @@ try-runtime = [
   "pallet-randomness-collective-flip/try-runtime",
   "pallet-scheduler/try-runtime",
   "pallet-session/try-runtime",
-  "pallet-society/try-runtime",
   "pallet-sudo/try-runtime",
   "pallet-timestamp/try-runtime",
   "pallet-transaction-payment/try-runtime",
