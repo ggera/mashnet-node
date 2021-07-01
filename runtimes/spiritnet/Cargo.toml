@@ -89,7 +89,7 @@ substrate-wasm-builder = "4.0.0"
 
 [features]
 default = ["std"]
-fast-gov = []
+fast-gov = ["kilt-primitives/fast-gov"]
 runtime-benchmarks = [
   "attestation/runtime-benchmarks",
   "ctype/runtime-benchmarks",

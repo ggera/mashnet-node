@@ -74,3 +74,48 @@ pub const INFLATION_CONFIG: (Perquintill, Perquintill, Perquintill, Perquintill)
 	// delegator reward rate
 	Perquintill::from_percent(8),
 );
+
+#[cfg(feature = "fast-gov")]
+pub const LAUNCH_PERIOD: BlockNumber = 7 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const LAUNCH_PERIOD: BlockNumber = 7 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const VOTING_PERIOD: BlockNumber = 7 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const VOTING_PERIOD: BlockNumber = 7 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 7 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 7 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const ENACTMENT_PERIOD: BlockNumber = 8 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const ENACTMENT_PERIOD: BlockNumber = 8 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const COOLOFF_PERIOD: BlockNumber = 7 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const COOLOFF_PERIOD: BlockNumber = 7 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const SPEND_PERIOD: BlockNumber = 6 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const SPEND_PERIOD: BlockNumber = 6 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const ROTATION_PERIOD: BlockNumber = 80 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const ROTATION_PERIOD: BlockNumber = 80 * HOURS;
+
+#[cfg(feature = "fast-gov")]
+pub const CHALLENGE_PERIOD: BlockNumber = 7 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const CHALLENGE_PERIOD: BlockNumber = 7 * DAYS;
+
+#[cfg(feature = "fast-gov")]
+pub const TERM_DURATION: BlockNumber = 15 * MINUTES;
+#[cfg(not(feature = "fast-gov"))]
+pub const TERM_DURATION: BlockNumber = DAYS;

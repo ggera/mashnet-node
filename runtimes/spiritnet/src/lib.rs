@@ -33,7 +33,15 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureOneOf, EnsureRoot, EnsureSigned,
 };
-use kilt_primitives::{AccountId, AuthorityId, Balance, BlockNumber, DidIdentifier, Hash, Header, Index, Signature, constants::{AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, KILT, MAXIMUM_BLOCK_WEIGHT, MICRO_KILT, MILLI_KILT, MINUTES, MIN_VESTED_TRANSFER_AMOUNT, NORMAL_DISPATCH_RATIO, SLOT_DURATION}};
+use kilt_primitives::{
+	constants::{
+		AVERAGE_ON_INITIALIZE_RATIO, CHALLENGE_PERIOD, COOLOFF_PERIOD, DAYS, ENACTMENT_PERIOD,
+		FAST_TRACK_VOTING_PERIOD, HOURS, KILT, LAUNCH_PERIOD, MAXIMUM_BLOCK_WEIGHT, MICRO_KILT, MILLI_KILT,
+		MIN_VESTED_TRANSFER_AMOUNT, NORMAL_DISPATCH_RATIO, ROTATION_PERIOD, SLOT_DURATION, SPEND_PERIOD, TERM_DURATION,
+		VOTING_PERIOD,
+	},
+	AccountId, AuthorityId, Balance, BlockNumber, DidIdentifier, Hash, Header, Index, Signature,
+};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use sp_api::impl_runtime_apis;
 use sp_core::{
@@ -418,31 +426,6 @@ impl pallet_scheduler::Config for Runtime {
 	type WeightInfo = weights::pallet_scheduler::WeightInfo<Runtime>;
 }
 
-#[cfg(feature = "fast-gov")]
-pub const LAUNCH_PERIOD: BlockNumber = 7 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
-pub const LAUNCH_PERIOD: BlockNumber = 7 * DAYS;
-
-#[cfg(feature = "fast-gov")]
-pub const VOTING_PERIOD: BlockNumber = 7 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
-pub const VOTING_PERIOD: BlockNumber = 7 * DAYS;
-
-#[cfg(feature = "fast-gov")]
-pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 7 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
-pub const FAST_TRACK_VOTING_PERIOD: BlockNumber = 7 * DAYS;
-
-#[cfg(feature = "fast-gov")]
-pub const ENACTMENT_PERIOD: BlockNumber = 8 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
-pub const ENACTMENT_PERIOD: BlockNumber = 8 * DAYS;
-
-#[cfg(feature = "fast-gov")]
-pub const COOLOFF_PERIOD: BlockNumber = 7 * MINUTES;
-#[cfg(not(feature = "fast-gov"))]
-pub const COOLOFF_PERIOD: BlockNumber = 7 * DAYS;
-
 parameter_types! {
 	pub const LaunchPeriod: BlockNumber = LAUNCH_PERIOD;
 	pub const VotingPeriod: BlockNumber = VOTING_PERIOD;
@@ -510,8 +493,6 @@ impl pallet_democracy::Config for Runtime {
 	type WeightInfo = weights::pallet_democracy::WeightInfo<Runtime>;
 }
 
-pub const SPEND_PERIOD: BlockNumber = 6 * DAYS;
-
 parameter_types! {
 	pub const TreasuryPalletId: PalletId = PalletId(*b"kilt/tsy");
 	pub const ElectionsPalletId: LockIdentifier = *b"kilt/elc";
@@ -554,9 +535,6 @@ impl pallet_treasury::Config for Runtime {
 	type MaxApprovals = MaxApprovals;
 }
 
-const ROTATION_PERIOD: BlockNumber = 80 * kilt_primitives::constants::HOURS;
-const CHALLENGE_PERIOD: BlockNumber = 7 * DAYS;
-
 parameter_types! {
 	pub const CandidateDeposit: Balance = 10 * KILT;
 	pub const WrongSideDeduction: Balance = 2 * KILT;
@@ -571,8 +549,6 @@ parameter_types! {
 pub const fn deposit(items: u32, bytes: u32) -> Balance {
 	items as Balance * 20 * KILT + (bytes as Balance) * 100 * MILLI_KILT
 }
-
-pub const TERM_DURATION: BlockNumber = DAYS;
 
 parameter_types! {
 	pub const CandidacyBond: Balance = 2 * KILT;
