@@ -33,13 +33,7 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureOneOf, EnsureRoot, EnsureSigned,
 };
-use kilt_primitives::{
-	constants::{
-		AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, KILT, MAXIMUM_BLOCK_WEIGHT, MICRO_KILT, MILLI_KILT,
-		MIN_VESTED_TRANSFER_AMOUNT, NORMAL_DISPATCH_RATIO, SLOT_DURATION,
-	},
-	AccountId, AuthorityId, Balance, BlockNumber, DidIdentifier, Hash, Header, Index, Signature,
-};
+use kilt_primitives::{AccountId, AuthorityId, Balance, BlockNumber, DidIdentifier, Hash, Header, Index, Signature, constants::{AVERAGE_ON_INITIALIZE_RATIO, DAYS, HOURS, KILT, MAXIMUM_BLOCK_WEIGHT, MICRO_KILT, MILLI_KILT, MINUTES, MIN_VESTED_TRANSFER_AMOUNT, NORMAL_DISPATCH_RATIO, SLOT_DURATION}};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use sp_api::impl_runtime_apis;
 use sp_core::{
@@ -998,10 +992,25 @@ impl_runtime_apis! {
 			// KILT
 			add_benchmark!(params, batches, kilt_launch, KiltLaunch);
 			add_benchmark!(params, batches, parachain_staking, ParachainStaking);
+			add_benchmark!(params, batches, pallet_collective, Council);
+			add_benchmark!(params, batches, pallet_democracy, Democracy);
+			add_benchmark!(params, batches, pallet_membership, TechnicalMembership);
+			add_benchmark!(params, batches, parachain_staking, ParachainStaking);
+			add_benchmark!(params, batches, pallet_scheduler, Scheduler);
+			add_benchmark!(params, batches, pallet_treasury, Treasury);
+			add_benchmark!(params, batches, attestation, Attestation);
+			add_benchmark!(params, batches, ctype, Ctype);
+			add_benchmark!(params, batches, delegation, Delegation);
+			add_benchmark!(params, batches, did, Did);
 
 			// No benchmarks for these pallets
 			// add_benchmark!(params, batches, cumulus_pallet_parachain_system, ParachainSystem);
 			// add_benchmark!(params, batches, parachain_info, ParachainInfo);
+			// add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmHandler);
+			// add_benchmark!(params, batches, orml_tokens, Tokens);
+			// add_benchmark!(params, batches, orml_currencies, Currencies);
+			// add_benchmark!(params, batches, orml_xtokens, XTokens);
+			// add_benchmark!(params, batches, orml_unknown_tokens, UnknownTokens);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

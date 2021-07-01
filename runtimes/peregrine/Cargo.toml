@@ -78,6 +78,7 @@ xcm-executor = {git = "https://github.com/paritytech/polkadot", default-features
 # Benchmarking
 frame-benchmarking = {git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.5"}
 frame-system-benchmarking = {git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.5"}
+pallet-society = {git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.5"}
 hex-literal = {version = "0.3.1", optional = true}
 
 # Runtime tests
@@ -106,6 +107,7 @@ runtime-benchmarks = [
   "pallet-indices/runtime-benchmarks",
   "pallet-membership/runtime-benchmarks",
   "pallet-scheduler/runtime-benchmarks",
+  "pallet-society/runtime-benchmarks",
   # "pallet-session/runtime-benchmarks",
   "pallet-timestamp/runtime-benchmarks",
   "pallet-treasury/runtime-benchmarks",
@@ -113,6 +115,7 @@ runtime-benchmarks = [
   "pallet-utility/runtime-benchmarks",
   "parachain-staking/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",
+  "xcm-builder/runtime-benchmarks",
 ]
 std = [
   "attestation/std",
