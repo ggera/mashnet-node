@@ -28,9 +28,8 @@ use sc_service::ChainType;
 use sp_core::{crypto::UncheckedInto, sr25519};
 use sp_runtime::traits::Zero;
 use spiritnet_runtime::{
-	BalancesConfig, GenesisConfig, InflationInfo, KiltLaunchConfig, MinCollatorStake,
-	ParachainInfoConfig, ParachainStakingConfig, SessionConfig, SudoConfig, SystemConfig,
-	VestingConfig, WASM_BINARY,
+	BalancesConfig, GenesisConfig, InflationInfo, KiltLaunchConfig, MinCollatorStake, ParachainInfoConfig,
+	ParachainStakingConfig, SessionConfig, SudoConfig, SystemConfig, VestingConfig, WASM_BINARY,
 };
 
 use crate::chain_spec::{get_account_id_from_seed, get_from_seed};
