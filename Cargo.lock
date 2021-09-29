@@ -3729,6 +3729,9 @@ dependencies = [
 [[package]]
 name = "kilt-traits"
 version = "0.26.0"
+dependencies = [
+ "frame-support",
+]
 
 [[package]]
 name = "kusama-runtime"
@@ -6191,6 +6194,7 @@ dependencies = [
  "frame-system",
  "hex-literal 0.2.1",
  "kilt-primitives",
+ "kilt-traits",
  "log",
  "pallet-aura",
  "pallet-authorship",

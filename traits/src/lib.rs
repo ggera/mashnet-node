@@ -17,6 +17,8 @@
 // If you feel like getting in touch with us, you can do so at info@botlabs.org
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::dispatch::Weight;
+
 /// The sources of a call struct.
 ///
 /// This trait allows to differentiate between the sender of a call and the
@@ -48,4 +50,17 @@ impl<S: Clone, P: Clone> CallSources<S, P> for (S, P) {
 	fn subject(&self) -> P {
 		self.1.clone()
 	}
+}
+
+/// A trait that allows version migrators to access the underlying pallet's
+/// context, e.g., its Config trait.
+///
+/// In this way, the migrator can access the pallet's storage and the pallet's
+/// types directly.
+pub trait VersionMigratorTrait<T> {
+	#[cfg(feature = "try-runtime")]
+	fn pre_migrate(&self) -> Result<(), &str>;
+	fn migrate(&self) -> Weight;
+	#[cfg(feature = "try-runtime")]
+	fn post_migrate(&self) -> Result<(), &str>;
 }
