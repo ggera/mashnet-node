@@ -13,3 +13,4 @@ The nodes use Parity Substrate as the underlying blockchain technology stack, ex
 * [How to build and run a KILT node](./docs/run-node.md)
 * [Detailed explanation about KILT node module functionalities](./docs/kilt-pallets-description.md)
 * [About KILT and Substrate in the Polkaverse](./docs/kilt-substrate.md)
+* [Benchmarking](https://github.com/KILTprotocol/bench-bot)
